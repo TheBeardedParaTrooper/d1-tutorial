@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flat-coin",
+  "compatibility_date": "2026-09-18",
+  "main": "src/index.ts",
+  "dev": {
+    "port": 8788
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "flat-coin-db",
+      "database_id": "local-db"
+    }
+  ]
+}

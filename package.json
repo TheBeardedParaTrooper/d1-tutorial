@@ -1,0 +1,9 @@
+{
+  "name": "flat-coin-isp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev"
+  },
+  "dependencies": {}
+}
