@@ -1,0 +1,8 @@
+name = "flat-coin-isp"
+main = "src/index.ts"
+compatibility_date = "2026-09-19"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "flat-coin-db"
+database_id = "4432cead-ccc2-4bd8-b753-bd5e790be3ac"
