@@ -1,9 +1,0 @@
-HTTP/1.1 200 OK
-Content-Length: 99
-Content-Type: text/csv
-Cache-Control: private, max-age=300
-Content-Disposition: attachment; filename="tariff-sheet.csv"
-ETag: "d955f84d557450dcaf6e331b1c253b753a465a358ff40b1b4782bdb4c1d83974"
-Content-Security-Policy: default-src 'none'; img-src 'self' data:; sandbox
-X-Content-Type-Options: nosniff
-

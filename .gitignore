@@ -14,3 +14,20 @@ mikrotik-7.23.7-arm64.iso
 data.tar.xz
 .tmp-*.txt
 .tmp-*.log
+
+# Media, archives, and binaries
+*.iso
+*.tar.*
+*.zip
+*.rar
+*.7z
+*.vdi
+*.iso
+*.mp4
+*.mp3
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.bin
+*.exe
