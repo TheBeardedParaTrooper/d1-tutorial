@@ -1,0 +1,22 @@
+{
+  "name": "flatcoin-isp-core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-d1": "^7.10.0",
+    "hono": "^4.13.12"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "prisma": "^8.0.0-rc.19",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.146.0"
+  }
+}

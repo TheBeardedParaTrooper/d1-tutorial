@@ -1,0 +1,58 @@
+public/index.html:76: trailing whitespace.
+[32m+[m[41m            [m
+public/index.html:81: trailing whitespace.
+[32m+[m[41m                [m
+public/index.html:162: trailing whitespace.
+[32m+[m[41m            [m
+schema.sql:28: trailing whitespace.
+[32m+[m[32mINSERT OR IGNORE INTO gateways (id, name, location) VALUES[m[41m [m
+src/index.ts:30: trailing whitespace.
+[32m+[m[32m        id TEXT PRIMARY KEY,[m[41m [m
+src/index.ts:31: trailing whitespace.
+[32m+[m[32m        phone_number TEXT UNIQUE,[m[41m [m
+src/index.ts:32: trailing whitespace.
+[32m+[m[32m        full_name TEXT,[m[41m [m
+src/index.ts:36: trailing whitespace.
+[32m+[m[32m        user_id TEXT PRIMARY KEY,[m[41m [m
+src/index.ts:37: trailing whitespace.
+[32m+[m[32m        balance REAL DEFAULT 0 CHECK(balance >= 0),[m[41m [m
+src/index.ts:42: trailing whitespace.
+[32m+[m[32m        id TEXT PRIMARY KEY,[m[41m [m
+src/index.ts:43: trailing whitespace.
+[32m+[m[32m        user_id TEXT,[m[41m [m
+src/index.ts:44: trailing whitespace.
+[32m+[m[32m        type TEXT,[m[41m [m
+src/index.ts:45: trailing whitespace.
+[32m+[m[32m        amount REAL,[m[41m [m
+src/index.ts:46: trailing whitespace.
+[32m+[m[32m        status TEXT,[m[41m [m
+src/index.ts:47: trailing whitespace.
+[32m+[m[32m        reference_id TEXT,[m[41m [m
+src/index.ts:52: trailing whitespace.
+[32m+[m[32m        id TEXT PRIMARY KEY,[m[41m [m
+src/index.ts:53: trailing whitespace.
+[32m+[m[32m        user_id TEXT,[m[41m [m
+src/index.ts:54: trailing whitespace.
+[32m+[m[32m        mac_address TEXT,[m[41m [m
+src/index.ts:55: trailing whitespace.
+[32m+[m[32m        token TEXT UNIQUE,[m[41m [m
+src/index.ts:56: trailing whitespace.
+[32m+[m[32m        duration_hours INTEGER,[m[41m [m
+src/index.ts:57: trailing whitespace.
+[32m+[m[32m        expires_at DATETIME,[m[41m [m
+src/index.ts:58: trailing whitespace.
+[32m+[m[32m        status TEXT,[m[41m [m
+src/index.ts:100: trailing whitespace.
+[32m+[m[41m    [m
+src/index.ts:114: trailing whitespace.
+[32m+[m[32m      `SELECT * FROM user_sessions[m[41m [m
+src/index.ts:115: trailing whitespace.
+[32m+[m[32m       WHERE (token = ? OR mac_address = ?)[m[41m [m
+src/index.ts:116: trailing whitespace.
+[32m+[m[32m         AND status = 'active'[m[41m [m
+src/index.ts:117: trailing whitespace.
+[32m+[m[32m         AND datetime(expires_at) > datetime('now')[m[41m [m
+src/index.ts:332: trailing whitespace.
+[32m+[m[41m        [m
+src/index.ts:344: trailing whitespace.
+[32m+[m[41m          [m

@@ -1,0 +1,444 @@
+
+[1;36m== 0. reset test state (idempotent re-run)[0m
+🚣 9 commands executed successfully.
+
+[1;36m== 1. register G (+255712234432, username G) - auto-signs in[0m
+{
+ "success": true,
+ "signed_in": true,
+ "user": {
+  "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+  "phone_number": "+255712234432",
+  "full_name": "G",
+  "username": "g"
+ }
+}
+
+[1;36m== 2. register Maria (+255765455654)[0m
+{
+ "success": true,
+ "signed_in": true,
+ "user": {
+  "id": "8f371130-e24c-431a-b402-3478e56a80a4",
+  "phone_number": "+255765455654",
+  "full_name": "Maria",
+  "username": "maria"
+ }
+}
+  G=6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075 Maria=8f371130-e24c-431a-b402-3478e56a80a4
+
+[1;36m== 3. seed test funds (G 7,200,000 / Maria 3,000) through the ledger, not a silent UPDATE[0m
+🚣 6 commands executed successfully.
+
+[1;36m== 4. sign in as G with the username only[0m
+{
+ "success": true,
+ "user": {
+  "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+  "phone_number": "+255712234432",
+  "full_name": "G",
+  "username": "g"
+ }
+}
+
+[1;36m== 5. wrong password is refused[0m
+  HTTP=401
+
+[1;36m== 6. reserved username is refused at sign-up[0m
+{"error":"Username must be 1-30 letters, digits or underscore, and is not a reserved name"} HTTP=400
+
+[1;36m== 7. who am I (cookie from step 4)[0m
+{
+ "user": {
+  "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+  "username": "g",
+  "phone_number": "+255712234432",
+  "full_name": "G"
+ },
+ "wallet": {
+  "balance": 7200000,
+  "updated_at": "2026-11-05 13:15:06"
+ }
+}
+
+[1;36m== 8. G creates the mini pc listing (300,000 TZS, no picture)[0m
+{
+ "item": {
+  "id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+  "kind": "product",
+  "title": "mini pc",
+  "description": "Mikrotik-ready edge box, 8GB RAM, silent",
+  "price": 300000,
+  "currency": "TZS",
+  "status": "draft",
+  "negotiable": true,
+  "payment_methods": [
+   "wallet",
+   "mobile_money"
+  ],
+  "payment_notes": "Wallet settles instantly. M-Pesa/Tigo Pesa/Airtel Money via AzamPay on request.",
+  "condition": "used",
+  "location": "Dar es Salaam",
+  "contact_phone": null,
+  "seller": {
+   "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+   "username": "g",
+   "name": "G"
+  },
+  "asset": null,
+  "image_url": null,
+  "file_url": null,
+  "created_at": "2026-11-05 13:15:09",
+  "published_at": null,
+  "sold_at": null,
+  "quote_status": null
+ },
+ "upload_url": "/api/marketplace/items/5c2
+
+[1;36m== 9. publish it without any upload[0m
+{
+ "item": {
+  "id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+  "kind": "product",
+  "title": "mini pc",
+  "description": "Mikrotik-ready edge box, 8GB RAM, silent",
+  "price": 300000,
+  "currency": "TZS",
+  "status": "active",
+  "negotiable": true,
+  "payment_methods": [
+   "wallet",
+   "mobile_money"
+  ],
+  "payment_notes": "Wallet settles instantly. M-Pesa/Tigo Pesa/Airtel Money via AzamPay on request.",
+  "condition": "used",
+  "location": "Dar es Salaam",
+  "contact_phone": null,
+  "seller": {
+   "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+   "username": "g",
+   "name": "G"
+  },
+  "asset": null,
+  "image_url": null,
+  "file_url": null,
+  "created_at": "2026-11-05 13:15:09",
+  "published_at": "2026-11-05 13:15:10",
+  "sold_at": null,
+  "quote_status": null
+ }
+}
+
+[1;36m== 10. product WITH a photo: create -> upload png -> publish[0m
+{
+ "item": {
+  "id": "b17569af-0337-464b-8dd7-f1f5a312c010",
+  "kind": "product",
+  "title": "5-port managed mini switch",
+  "description": "Refurbished, tested",
+  "price": 45000,
+  "currency": "TZS",
+  "status": "draft",
+  "negotiable": true,
+  "payment_methods": [
+   "wallet"
+  ],
+  "payment_notes": "",
+  "condition": null,
+  "location": null,
+  "contact_phone": null,
+  "seller": {
+   "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+   "username": "g",
+   "name": "G"
+  },
+  "asset": {
+   "id": "e806c5fc-bd40-46c6-8e43-8ac5017bbea4",
+   "purpose": "image",
+   "file_name": "mini-switch-photo.png",
+   "content_type": "image/png",
+   "size_bytes": 239,
+   "icon_label": null,
+   "url": "/api/marketplace/items/b17569af-0337-464b-8dd7-f1f5a312c010/asset"
+  },
+  "image_url": "/api/marketplace/item
+
+[1;36m== 11. digital FILE listing: create -> upload csv -> publish (icon must show the type)[0m
+{
+ "item": {
+  "id": "a4c18997-b83e-45c1-8eb9-a40434ebf5f8",
+  "kind": "file",
+  "title": "Wholesale bandwidth tariff sheet",
+  "description": "Rate card for resellers",
+  "price": 2000,
+  "currency": "TZS",
+  "status": "draft",
+  "negotiable": false,
+  "payment_methods": [
+   "wallet"
+  ],
+  "payment_notes": "",
+  "condition": null,
+  "location": null,
+  "contact_phone": null,
+  "seller": {
+   "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+   "username": "g",
+   "name": "G"
+  },
+  "asset": {
+   "id": "2d532c5b-1b3e-40e8-b377-ed57e5ebdbc8",
+   "purpose": "file",
+   "file_name": "tariff-sheet.csv",
+   "content_type": "text/csv",
+   "size_bytes": 99,
+   "icon_label": "CSV",
+   "url": "/api/marketplace/items/a4c18997-b83e-45c1-8eb9-a40434ebf5f8/asset"
+  },
+  "image_url": null,
+  "file_url": "/
+
+[1;36m== 12. PDF listing (file type icon only)[0m
+{
+ "item": {
+  "id": "b112ce32-e1f7-4fca-9f9b-709bb3a8ba3e",
+  "kind": "file",
+  "title": "RB931GS datasheet",
+  "description": "Vendor sheet for the CPE we sell",
+  "price": 500,
+  "currency": "TZS",
+  "status": "draft",
+  "negotiable": false,
+  "payment_methods": [
+   "wallet"
+  ],
+  "payment_notes": "",
+  "condition": null,
+  "location": null,
+  "contact_phone": null,
+  "seller": {
+   "id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+   "username": "g",
+   "name": "G"
+  },
+  "asset": {
+   "id": "b9181650-b63b-40bf-a5f6-9a420cdf03da",
+   "purpose": "file",
+   "file_name": "rb931gs-datasheet.pdf",
+   "content_type": "application/pdf",
+   "size_bytes": 399,
+   "icon_label": "PDF",
+   "url": "/api/marketplace/items/b112ce32-e1f7-4fca-9f9b-709bb3a8ba3e/asset"
+  },
+  "image_url": null,
+  "file_ur
+
+[1;36m== 13. an HTML upload must be rejected[0m
+{"error":"Unsupported file type"} HTTP=400
+
+[1;36m== 14. someone else cannot upload to G's listing[0m
+{"error":"Only the seller can upload to this listing"} HTTP=403
+
+[1;36m== 15. public listing feed (icon rule: photo vs file type)[0m
+  file     RB931GS datasheet                       500 img=no  icon=PDF   methods=wallet seller=@g
+  file     Wholesale bandwidth tariff sheet       2000 img=no  icon=CSV   methods=wallet seller=@g
+  product  5-port managed mini switch            45000 img=yes icon=-     methods=wallet seller=@g
+  product  mini pc                              300000 img=no  icon=-     methods=wallet,mobile_money seller=@g
+
+[1;36m== 16. served bytes match the original file exactly[0m
+  Content-Type: text/csv
+  Content-Disposition: attachment; filename="tariff-sheet.csv"
+  ETag: "d955f84d557450dcaf6e331b1c253b753a465a358ff40b1b4782bdb4c1d83974"
+  Content-Security-Policy: default-src 'none'; img-src 'self' data:; sandbox
+  X-Content-Type-Options: nosniff
+  sha256 original  : d955f84d557450dcaf6e331b1c253b753a465a358ff40b1b4782bdb4c1d83974
+  sha256 downloaded: d955f84d557450dcaf6e331b1c253b753a465a358ff40b1b4782bdb4c1d83974
+
+[1;36m== 17. Maria requests a quotation on the mini pc[0m
+{
+ "quote": {
+  "id": "fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d",
+  "item_id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+  "status": "pending",
+  "seller": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075"
+ },
+ "settle_url": "/api/marketplace/quotes/fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d/pay"
+}
+
+[1;36m== 18. duplicate open quote on the same listing is blocked[0m
+{"error":"You already have an open quote on this listing"} HTTP=409
+
+[1;36m== 19. G sees the incoming quote with Maria's wallet balance[0m
+{
+ "quotes": [
+  {
+   "id": "fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d",
+   "item": {
+    "id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+    "title": "mini pc",
+    "price": 300000,
+    "kind": "product",
+    "status": "active",
+    "image_url": null,
+    "file_url": null,
+    "icon_label": null
+   },
+   "requested_price": 280000,
+   "accepted_price": null,
+   "payable_price": null,
+   "message": "I can pay today from my wallet, please hold it for me",
+   "seller_note": null,
+   "status": "pending",
+   "created_at": "2026-11-05 13:15:16",
+   "responded_at": null,
+   "paid_at": null,
+   "expires_at": "2026-11-08 13:15:16",
+   "counterparty": {
+    "role": "buyer",
+    "id": "8f371130-e24c-431a-b402-3478e56a80a4",
+    "username": "maria",
+    "name": "Maria",
+    "wallet_balance": 3000
+   }
+  }
+ ]
+
+[1;36m== 20. G accepts at a counter price of 295,000[0m
+{
+ "quote": {
+  "id": "fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d",
+  "item_id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+  "buyer_id": "8f371130-e24c-431a-b402-3478e56a80a4",
+  "seller_id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+  "requested_price": 280000,
+  "accepted_price": 295000,
+  "message": "I can pay today from my wallet, please hold it for me",
+  "seller_note": "295k and I ship today",
+  "status": "accepted",
+  "created_at": "2026-11-05 13:15:16",
+  "responded_at": "2026-11-05 13:15:18",
+  "paid_at": null,
+  "expires_at": "2026-11-08 13:15:18",
+  "item": {
+   "id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+   "kind": "product",
+   "title": "mini pc",
+   "description": "Mikrotik-ready edge box, 8GB RAM, silent",
+   "price": 300000,
+   "currency": "TZS",
+   "status": "active",
+   "negotiab
+
+[1;36m== 21. Maria has only 3,000 - payment must fail and move nothing[0m
+{"error":"Insufficient wallet balance"} HTTP=400
+  state after the failed attempt: [{'quote_status': 'accepted', 'item_status': 'active', 'maria_balance': 3000}]
+
+[1;36m== 22. a seller cannot pay their own quote, and cannot answer twice[0m
+{"error":"This quotation belongs to another buyer"} HTTP=403
+{"error":"Quotation is already accepted"} HTTP=409
+
+[1;36m== 23. fund Maria +300,000 TZS (test fixture, mirrors an admin credit)[0m
+🚣 3 commands executed successfully.
+
+[1;36m== 24. Maria pays the accepted quotation from her wallet[0m
+{
+ "success": true,
+ "quote_id": "fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d",
+ "item_id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+ "paid": 295000,
+ "currency": "TZS",
+ "seller_id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+ "method": "wallet",
+ "quote": {
+  "id": "fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d",
+  "item_id": "5c225dee-7bbf-4a11-b900-71ff0c9c9cc5",
+  "buyer_id": "8f371130-e24c-431a-b402-3478e56a80a4",
+  "seller_id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+  "requested_price": 280000,
+  "accepted_price": 295000,
+  "message": "I can pay today from my wallet, please hold it for me",
+  "seller_note": "295k and I ship today",
+  "status": "paid",
+  "created_at": "2026-11-05 13:15:16",
+  "responded_at": "2026-11-05 13:15:18",
+  "paid_at": "2026-11-05 13:15:28",
+  "expires_at": "2026-11-08 13:15:18
+
+[1;36m== 25. replaying the same settlement is refused[0m
+{"error":"Quotation is paid, not accepted"} HTTP=409
+
+[1;36m== 26. buy the 2,000 TZS file listing outright (instant wallet transfer)[0m
+{
+ "success": true,
+ "item_id": "a4c18997-b83e-45c1-8eb9-a40434ebf5f8",
+ "paid": 2000,
+ "currency": "TZS",
+ "credited_to": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075"
+}
+
+[1;36m== 27. a listing that is already sold cannot be bought again[0m
+{"error":"Item is no longer available"} HTTP=409
+
+[1;36m== 28. G cannot buy his own listing[0m
+{"error":"You cannot buy your own listing"} HTTP=403
+
+[1;36m== 29. Maria buys a 500 TZS time pass with what is left[0m
+{
+ "success": true,
+ "session": {
+  "id": "6785d272-d671-4e73-9a46-1e4a28465b00",
+  "radius_token": "F6AF22B6D4ABC13F208AE2C518030124B0AE4D55ABAE1A1E",
+  "expires_at": "2026-11-05T14:15:30.973Z"
+ },
+ "charged": {
+  "amount": 500,
+  "currency": "TZS"
+ },
+ "router_access": "radius_pull"
+}
+
+[1;36m== 30. Maria sends 1,000 TZS to @g (username transfer, no UUID needed)[0m
+{
+ "success": true,
+ "transfer": {
+  "recipient_id": "6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075",
+  "recipient_username": "g",
+  "recipient_name": "G",
+  "amount": 1000,
+  "currency": "TZS"
+ }
+}
+
+[1;36m== 31. transfer to an unknown handle is a clean 404[0m
+{"error":"No wallet for that username, number or user id"} HTTP=404
+
+[1;36m== 32. a time pass she cannot afford is a clean 400 (not a 500)[0m
+{"error":"Insufficient balance"} HTTP=400
+
+[1;36m== 33. traces: wallets, ledger, audit[0m
+   {'username': 'g', 'full_name': 'G', 'balance': 7498000}
+   {'username': 'maria', 'full_name': 'Maria', 'balance': 4500}
+   {'username': 'g', 'type': 'MARKETPLACE_SELL', 'amount': 295000, 'status': 'success', 'reference_id': 'quote:fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d'}
+   {'username': 'maria', 'type': 'MARKETPLACE_BUY', 'amount': 295000, 'status': 'success', 'reference_id': 'quote:fd4b4178-9c33-4dc7-a75b-a8e26bcd5f0d'}
+   {'username': 'g', 'type': 'MARKETPLACE_SELL', 'amount': 2000, 'status': 'success', 'reference_id': 'quote:direct:a4c18997-b83e-45c1-8eb9-a40434ebf5f8'}
+   {'username': 'maria', 'type': 'MARKETPLACE_BUY', 'amount': 2000, 'status': 'success', 'reference_id': 'quote:direct:a4c18997-b83e-45c1-8eb9-a40434ebf5f8'}
+   {'username': 'g', 'type': 'TRANSFER_IN', 'amount': 1000, 'status': 'success', 'reference_id': 'transfer:handle-1793884531141686001:in'}
+   {'username': 'maria', 'type': 'TRANSFER_OUT', 'amount': 1000, 'status': 'success', 'reference_id': 'transfer:handle-1793884531141686001:out'}
+   marketplace.sold | {"seller_id":"6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075","price":2000,"currency":"TZS","method":"wallet"}
+   marketplace.quote_paid | {"item_id":"5c225dee-7bbf-4a11-b900-71ff0c9c9cc5","seller_id":"6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075","amount":
+   marketplace.quote_accepted | {"item_id":"5c225dee-7bbf-4a11-b900-71ff0c9c9cc5","buyer_id":"8f371130-e24c-431a-b402-3478e56a80a4","requested
+   marketplace.quote_requested | {"item_id":"5c225dee-7bbf-4a11-b900-71ff0c9c9cc5","seller_id":"6e5046c2-e4bf-4baf-8b67-1d9ddcfbb075","offered_
+   marketplace.published | {"action":"publish"}
+   marketplace.published | {"action":"publish"}
+   marketplace.published | {"action":"publish"}
+   marketplace.published | {"action":"publish"}
+   user.login_failed | {"attempted":"@g"}
+   user.login | {"via":"username","upgraded_from_legacy":false}
+   user.registered | {"username":"maria","phone_number":"+255765455654","has_username":true}
+   user.registered | {"username":"g","phone_number":"+255712234432","has_username":true}
+   {'title': 'mini pc', 'kind': 'product', 'price': 300000, 'status': 'sold'}
+   {'title': '5-port managed mini switch', 'kind': 'product', 'price': 45000, 'status': 'active'}
+   {'title': 'Wholesale bandwidth tariff sheet', 'kind': 'file', 'price': 2000, 'status': 'sold'}
+   {'title': 'RB931GS datasheet', 'kind': 'file', 'price': 500, 'status': 'active'}
+
+[1;36m== ids written to .tmp-smoke[0m

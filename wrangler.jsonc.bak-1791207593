@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "d1-tutorial",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "flat-coin-isp-db",
+      "database_id": "4432cead-ccc2-4bd8-b753-bd5e790be3ac"
+    }
+  ]
+}

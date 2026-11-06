@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>Wi-Fi sign-in help · Flat Coin ISP</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #07111f; color: #f1f5f9; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1.5rem, env(safe-area-inset-bottom)); display: grid; place-items: center; }
+    main { width: min(100%, 32rem); border: 1px solid #27364a; border-radius: 1.25rem; background: #101c2d; padding: clamp(1.25rem, 6vw, 2rem); box-shadow: 0 24px 70px #0006; }
+    .brand { color: #a5b4fc; font-size: .8rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { margin: .75rem 0; font-size: clamp(1.65rem, 7vw, 2.1rem); line-height: 1.15; }
+    p { color: #cbd5e1; line-height: 1.65; }
+    .notice { margin: 1.25rem 0; border: 1px solid #854d0e; border-radius: .85rem; background: #422006; padding: 1rem; color: #fef3c7; }
+    .device { color: #94a3b8; font-size: .875rem; overflow-wrap: anywhere; }
+    a { display: flex; min-height: 48px; align-items: center; justify-content: center; margin-top: 1.25rem; border-radius: .8rem; background: #4f46e5; color: white; font-weight: 700; text-align: center; text-decoration: none; padding: .75rem 1rem; -webkit-tap-highlight-color: transparent; }
+    a:focus-visible { outline: 3px solid #c7d2fe; outline-offset: 3px; }
+    .small { color: #94a3b8; font-size: .82rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">⚡ Flat Coin ISP</div>
+    <h1>Continue Wi-Fi sign-in</h1>
+    <p>If this appeared in the iPhone captive sign-in window, the network may need to be opened in Safari to finish browsing comfortably.</p>
+    <div class="notice">
+      <strong>iPhone tip</strong>
+      <p>Tap the Share button and choose <strong>Open in Safari</strong>. If that option is unavailable, continue in this window. Keep this page open while signing in.</p>
+    </div>
+    <p id="device-context" class="device" aria-live="polite">Reading the router's connection details…</p>
+    <p><strong>Automatic router login is not configured here.</strong> This page will not mark the device online, charge an account, or send credentials to another site. The network operator must configure the portal address and MikroTik handoff before access can be activated.</p>
+    <a id="continue-link" href="/" target="_blank" rel="noopener">Open in Safari / continue</a>
+    <p class="small">The continue link stays on this same router page and keeps the original captive parameters. iOS decides whether it opens in Safari or another browser window.</p>
+  </main>
+  <script>
+    (() => {
+      const query = new URLSearchParams(window.location.search);
+      const macValue = (query.get('mac') || '').trim();
+      const validMac = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i.test(macValue);
+      const ipValue = (query.get('ip') || '').trim().slice(0, 64);
+      const safeSameOriginPath = (value) => {
+        if (!value) return '';
+        try {
+          const url = new URL(value, window.location.href);
+          return url.origin === window.location.origin && ['http:', 'https:'].includes(url.protocol)
+            ? `${url.pathname}${url.search}${url.hash}` : '';
+        } catch { return ''; }
+      };
+      // Read RouterOS fields, but never navigate to caller-controlled cross-origin URLs.
+      const loginOnly = safeSameOriginPath(query.get('link-login-only'));
+      const original = safeSameOriginPath(query.get('link-orig'));
+      void loginOnly;
+      void original;
+      const context = [];
+      if (validMac) context.push(`Router-observed device address: ${macValue.replace(/-/g, ':').toUpperCase()} (not an authentication factor)`);
+      if (ipValue) context.push(`Router-reported IP: ${ipValue}`);
+      document.getElementById('device-context').textContent = context.join(' · ') || 'No router device address was supplied. Do not guess a device address.';
+      document.getElementById('continue-link').href = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    })();
+  </script>
+</body>
+</html>

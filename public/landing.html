@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flat Coin ISP - Hyper-Local Ecosystem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+    <!-- jsPDF for client-side receipt generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans antialiased selection:bg-indigo-500 selection:text-white" x-data="portalApp()" x-init="boot()">
+
+    <!-- Toast Notification Banner -->
+    <div x-show="toast.show" x-transition.origin.top.duration.300ms class="fixed top-5 right-5 z-50 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 max-w-sm">
+        <span class="text-indigo-400 font-bold" x-text="toast.icon">⚡</span>
+        <p class="text-xs font-medium" x-text="toast.message"></p>
+    </div>
+
+    <!-- Top Navigation & Smart Omni-Bar Header -->
+    <header class="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3 w-full md:w-auto justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white font-black text-sm">⚡</div>
+                    <span class="font-black tracking-wider text-sm bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">FLATCOIN</span>
+                </div>
+                <span class="text-[10px] bg-indigo-950/80 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-800/50 font-mono tracking-tight" x-text="'NODE: ' + (macAddress || 'UNKNOWN')"></span>
+            </div>
+
+            <!-- Smart Omni-Search Bar -->
+            <div class="w-full md:w-[420px] relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 text-xs">🔍</div>
+                <input type="text" x-model="omniQuery" @keyup.enter="handleOmniSearch" placeholder="Paste Tx ID, Package ID, or a Device MAC..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-20 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner">
+                <button @click="handleOmniSearch" class="absolute right-1.5 top-1.5 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg font-semibold transition shadow-sm">Resolve</button>
+            </div>
+
+            <!-- Session State -->
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                <template x-if="auth.checked && !auth.user">
+                    <div class="flex items-center gap-2">
+                        <a href="/account?next=%2Flanding" class="text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl font-semibold transition">Sign in</a>
+                        <a href="/account?mode=register&amp;next=%2Flanding" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 px-3 py-1.5 rounded-xl font-semibold transition">Register</a>
+                    </div>
+                </template>
+                <template x-if="auth.user">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-mono text-emerald-400" x-text="auth.user.phone_number"></span>
+                        <a href="/wallet" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 transition">Dashboard</a>
+                        <button @click="signOut()" class="text-[11px] text-slate-400 hover:text-white transition">Sign out</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="max-w-6xl mx-auto px-4 flex space-x-8 overflow-x-auto border-t border-slate-800/50 scrollbar-none">
+            <button @click="activeTab = 'plans'" :class="activeTab === 'plans' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent text-slate-400 hover:text-slate-200'" class="py-3 text-xs border-b-2 transition whitespace-nowrap flex items-center space-x-1.5">
+                <span>📶</span> <span>Plans (Tiers)</span>
+            </button>
+            <button @click="activeTab = 'wallet'" :class="activeTab === 'wallet' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent text-slate-400 hover:text-slate-200'" class="py-3 text-xs border-b-2 transition whitespace-nowrap flex items-center space-x-1.5">
+                <span>💳</span> <span>Wallet & Banking</span>
+            </button>
+            <button @click="activeTab = 'marketplace'" :class="activeTab === 'marketplace' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent text-slate-400 hover:text-slate-200'" class="py-3 text-xs border-b-2 transition whitespace-nowrap flex items-center space-x-1.5">
+                <span>🛍️</span> <span>Market Places</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-6xl w-full mx-auto px-4 py-8 flex-1 space-y-6">
+
+        <!-- Gateway / Device Context Bar -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                <span class="w-2 h-2 rounded-full" :class="backendOk ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                <span x-text="backendOk ? 'API reachable' : 'API unreachable — check the worker'"></span>
+                <span class="text-slate-600">|</span>
+                <span x-text="auth.checked ? (auth.user ? 'Signed in' : 'Guest') : 'Checking session…'"></span>
+            </div>
+            <div class="flex items-center gap-2 sm:ml-auto">
+                <label class="text-[10px] font-mono text-slate-500 uppercase">Device MAC</label>
+                <input type="text" x-model="macAddress" @change="saveMac()" placeholder="AA:BB:CC:DD:EE:FF" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-[11px] font-mono text-white w-40 focus:outline-none focus:border-indigo-500">
+                <span class="text-[10px]" :class="macValid() ? 'text-emerald-400' : 'text-amber-400'" x-text="macValid() ? 'valid node address' : 'router did not send a MAC'"></span>
+            </div>
+        </div>
+
+        <!-- Active Session Banner (after a successful purchase) -->
+        <div x-show="activeSession" x-cloak class="bg-emerald-950/40 border border-emerald-800/60 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="text-xs space-y-1">
+                <p class="font-bold text-emerald-300">Access provisioned via RADIUS</p>
+                <p class="text-slate-400">Expires <span class="text-white font-semibold" x-text="formatDate(activeSession?.expires_at)"></span></p>
+                <p class="text-slate-500 font-mono text-[10px]" x-text="'Token: ' + activeSession?.radius_token"></p>
+            </div>
+            <div class="flex gap-2 sm:ml-auto">
+                <button @click="copy(activeSession?.radius_token)" class="text-[11px] bg-emerald-800/60 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl transition">Copy token</button>
+                <button @click="loadWalletData()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 transition">Refresh ledger</button>
+            </div>
+        </div>
+
+        <!-- Tab panels carry no x-transition on purpose: Alpine drives transitions from
+             requestAnimationFrame, which browsers pause in a background tab, leaving a panel stuck hidden. -->
+        <!-- TAB 1: PLANS (live from /api/packages) -->
+        <div x-show="activeTab === 'plans'" class="space-y-4">
+            <div class="flex justify-between items-end">
+                <div>
+                    <h2 class="text-base font-black tracking-tight text-white">MikroTik Network Tiers</h2>
+                    <p class="text-xs text-slate-400">Packages read live from D1. Buying debits your wallet and binds the pass to this node.</p>
+                </div>
+                <button @click="loadPackages()" class="text-[10px] font-mono bg-slate-900 text-indigo-400 px-2.5 py-1 rounded-md border border-slate-800 hover:bg-slate-800 transition">↻ /api/packages</button>
+            </div>
+
+            <p x-show="loading.plans" class="text-xs text-slate-500 py-6 text-center">Loading packages from the API…</p>
+            <p x-show="!loading.plans && apiErrors.packages" class="text-xs text-rose-400 bg-rose-950/40 border border-rose-900/50 rounded-xl p-3" x-text="apiErrors.packages"></p>
+            <p x-show="!loading.plans && !apiErrors.packages && !packages.length" class="text-xs text-slate-500 py-6 text-center">No sellable packages in the database yet — seed the <code class="font-mono">packages</code> table.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 pt-2">
+                <template x-for="plan in packages" :key="plan.id">
+                    <div class="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition duration-300 group">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-extrabold tracking-wider text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/50" x-text="plan.duration_label"></span>
+                                <span class="text-[9px] font-mono text-slate-600 truncate max-w-[70px]" x-text="plan.id"></span>
+                            </div>
+                            <h3 class="text-base font-bold text-white group-hover:text-indigo-300 transition" x-text="plan.name"></h3>
+                            <p class="text-xs text-slate-400 mt-2 leading-relaxed" x-text="plan.description"></p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-slate-800/80 space-y-2">
+                            <div class="text-lg font-black text-emerald-400" x-text="formatMoney(plan.price) + ' TZS'"></div>
+                            <button @click="purchasePlan(plan)" :disabled="busy.buy" class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2 rounded-xl text-xs transition shadow-md shadow-indigo-600/20 active:scale-95">
+                                <span x-text="busy.buy ? 'Provisioning…' : 'Buy with wallet'"></span>
+                            </button>
+                            <button @click="openDeposit(plan)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 rounded-xl text-xs transition border border-slate-700">Pay by phone (AzamPay)</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- TAB 2: WALLET & BANKING -->
+        <div x-show="activeTab === 'wallet'" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- Balance Card -->
+                <div class="bg-gradient-to-br from-slate-900 via-indigo-950/30 to-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-indigo-600/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Wallet Balance</h3>
+                            <span class="w-2 h-2 rounded-full" :class="auth.user ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'"></span>
+                        </div>
+                        <div class="mt-4 flex items-baseline space-x-2">
+                            <span class="text-4xl font-black text-white tracking-tight" x-text="auth.user ? formatMoney(wallet.balance) : '—'"></span>
+                            <span class="text-indigo-400 font-bold text-xs">TZS</span>
+                        </div>
+                        <p x-show="!auth.user" class="text-[11px] text-slate-400 mt-3">
+                            <a href="/account?next=%2Flanding" class="text-indigo-400 hover:text-indigo-300 font-semibold">Sign in</a> to read your balance from D1.
+                        </p>
+                        <p x-show="apiErrors.wallet" class="text-[11px] text-rose-400 mt-2" x-text="apiErrors.wallet"></p>
+                        <p x-show="auth.user && wallet.updated_at" class="text-[10px] text-slate-500 mt-2 font-mono" x-text="'updated ' + formatDate(wallet.updated_at)"></p>
+                    </div>
+                    <div class="mt-6 flex gap-3">
+                        <button @click="openDeposit()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-md shadow-indigo-600/20">AzamPay Top-up</button>
+                        <button @click="modals.withdraw = true" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-2.5 rounded-xl text-xs transition border border-slate-700">Withdraw</button>
+                    </div>
+                </div>
+
+                <!-- P2P Send Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl md:col-span-2 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Peer-to-Peer Network Transfer</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Move TZS instantly to another registered account on this ISP.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 font-mono">RECIPIENT ACCOUNT ID</label>
+                            <input type="text" x-model="p2pForm.recipient" placeholder="target user id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 font-mono">AMOUNT (TZS)</label>
+                            <input type="number" min="1" step="1" x-model="p2pForm.amount" placeholder="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button @click="executeP2P()" :disabled="busy.p2p" class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-md shadow-emerald-600/20" x-text="busy.p2p ? 'Sending…' : 'Send Coins'"></button>
+                        <a href="/wallet" class="flex-1 text-center bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl text-xs transition border border-slate-700">Open full dashboard</a>
+                    </div>
+                    <p class="text-[10px] text-slate-500">The API keys transfers by account id (no phone lookup endpoint yet) — <code class="font-mono">/api/auth/me</code> returns your own id.</p>
+                </div>
+
+            </div>
+
+            <!-- Pending AzamPay Order -->
+            <div x-show="pendingOrder" x-cloak class="bg-amber-950/30 border border-amber-800/50 rounded-2xl p-4 text-xs space-y-1">
+                <p class="font-bold text-amber-300">AzamPay order <span class="font-mono" x-text="pendingOrder?.merchant_id"></span></p>
+                <p class="text-slate-400">
+                    <span x-text="pendingOrder?.package_name"></span> ·
+                    <span x-text="formatMoney(pendingOrder?.expected_amount) + ' TZS'"></span> ·
+                    status <span class="font-mono text-white" x-text="pendingOrder?.status"></span> /
+                    provider <span class="font-mono text-white" x-text="pendingOrder?.provider_state"></span>
+                </p>
+                <p class="text-slate-500" x-show="pendingOrder?.provider_state === 'unconfigured'">AzamPay is not configured on this worker, so the order stays pending until a signed webhook credits the wallet.</p>
+                <button @click="pollOrder()" class="mt-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 px-3 py-1.5 rounded-xl border border-slate-700 transition">Check status</button>
+            </div>
+
+            <!-- Ledger & PDF Receipts -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Verified Ledger & PDF Receipts</h3>
+                        <p class="text-xs text-slate-400">Your last 50 transactions, straight from D1.</p>
+                    </div>
+                    <button @click="loadWalletData()" class="text-xs bg-slate-800 hover:bg-slate-700 text-indigo-400 px-3 py-1.5 rounded-xl border border-slate-700 transition">🔄 Refresh</button>
+                </div>
+                <p x-show="apiErrors.ledger" class="text-xs text-rose-400 mb-3" x-text="apiErrors.ledger"></p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-500 uppercase text-[10px] font-mono">
+                                <th class="py-3 px-3">Tx Reference</th>
+                                <th class="py-3 px-3">Type</th>
+                                <th class="py-3 px-3">Amount</th>
+                                <th class="py-3 px-3">Status</th>
+                                <th class="py-3 px-3">Recorded</th>
+                                <th class="py-3 px-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 font-mono">
+                            <template x-if="!transactions.length">
+                                <tr><td colspan="6" class="py-6 text-center text-slate-500 font-sans" x-text="auth.user ? 'No transactions yet — a top-up or pass purchase will show up here.' : 'Sign in to read your ledger.'"></td></tr>
+                            </template>
+                            <template x-for="tx in transactions" :key="tx.id">
+                                <tr class="hover:bg-slate-800/40 transition" :class="highlightedTx === (tx.reference_id || tx.id) ? 'bg-indigo-950/50' : ''">
+                                    <td class="py-3.5 px-3 text-slate-400" x-text="tx.reference_id || tx.id"></td>
+                                    <td class="py-3.5 px-3 text-slate-300 font-sans" x-text="prettyType(tx.type)"></td>
+                                    <td class="py-3.5 px-3 font-bold" :class="isCredit(tx.type) ? 'text-emerald-400' : 'text-rose-400'" x-text="(isCredit(tx.type) ? '+' : '-') + formatMoney(tx.amount)"></td>
+                                    <td class="py-3.5 px-3"><span class="px-2 py-0.5 rounded-md border text-[10px]" :class="tx.status === 'success' ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/50' : 'bg-amber-950/80 text-amber-400 border-amber-800/50'" x-text="tx.status"></span></td>
+                                    <td class="py-3.5 px-3 text-slate-500 text-[10px]" x-text="formatDate(tx.created_at)"></td>
+                                    <td class="py-3.5 px-3 text-right font-sans">
+                                        <button @click="generatePDFReceipt(tx)" class="bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl transition text-[11px] font-medium border border-slate-700">PDF Receipt</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: MARKET PLACES -->
+        <div x-show="activeTab === 'marketplace'" class="space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-base font-black tracking-tight text-white">Peer Marketplace</h2>
+                    <p class="text-xs text-slate-400">Sell hardware or files to anyone on this network. Wallet-to-wallet settlement is instant and appears in both ledgers.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="loadMarketplace(true)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2.5 rounded-xl text-xs border border-slate-700 transition">↻ Refresh</button>
+                    <button @click="openListingModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl text-xs transition shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5">
+                        <span>+</span> <span>Sell an item / file</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live status of the marketplace endpoint -->
+            <div class="rounded-2xl border p-4 text-xs space-y-2" :class="marketplace.state === 'live' ? 'bg-slate-900 border-slate-800' : 'bg-amber-950/20 border-amber-800/50'">
+                <p class="font-semibold" :class="marketplace.state === 'live' ? 'text-emerald-400' : 'text-amber-300'" x-text="marketplace.headline"></p>
+                <p class="text-slate-400" x-text="marketplace.note"></p>
+                <p class="text-slate-500" x-show="!auth.user">You are browsing as a guest. <a href="/account?next=%2Flanding" class="text-indigo-400 hover:text-white">Sign in</a> to buy or ask for a quotation, or <a href="/account?mode=register&amp;next=%2Flanding" class="text-emerald-400 hover:text-white">create an account</a> to sell.</p>
+                <button @click="loadMarketplace(true)" class="bg-slate-800 hover:bg-slate-700 text-indigo-400 px-3 py-1.5 rounded-xl border border-slate-700 transition">↻ Retry /api/marketplace/items</button>
+            </div>
+
+            <!-- Buyer side: quotations I asked for -->
+            <div x-show="myQuotes.length" class="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">My quotation requests</h3>
+                <template x-for="quote in myQuotes" :key="quote.id">
+                    <div class="border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-semibold text-white" x-text="quote.item.title"></p>
+                            <p class="text-[10px] text-slate-400 font-mono">
+                                I offered <span x-text="formatMoney(quote.requested_price)"></span> ·
+                                seller counter <span x-text="quote.accepted_price ? formatMoney(quote.accepted_price) : '—'"></span> ·
+                                to <span x-text="'@' + (quote.counterparty.username || quote.counterparty.id)"></span>
+                            </p>
+                            <p class="text-[10px] text-slate-500 italic" x-show="quote.seller_note" x-text="'seller note: ' + quote.seller_note"></p>
+                            <p class="text-[10px] text-amber-300" x-show="quote.status === 'accepted' && quote.expires_at" x-text="'this price is held until ' + quote.expires_at"></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] px-2 py-1 rounded-lg border font-mono"
+                                  :class="quote.status === 'paid' ? 'text-emerald-300 border-emerald-800 bg-emerald-950/40' : (quote.status === 'accepted' ? 'text-indigo-300 border-indigo-700 bg-indigo-950/40' : 'text-slate-400 border-slate-800')"
+                                  x-text="quote.status"></span>
+                            <button x-show="quote.status === 'accepted'" @click="payQuote(quote)" :disabled="busy.quote"
+                                    class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-xl text-xs transition"
+                                    x-text="'Pay ' + formatMoney(quote.payable_price || quote.accepted_price) + ' from wallet'"></button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                <template x-for="item in marketplace.items" :key="item.id">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between hover:border-slate-700 transition duration-300 group">
+                        <div>
+                            <!-- Product photo, or a tile that says what TYPE of file it is -->
+                            <div class="h-44 bg-slate-950 relative overflow-hidden flex items-center justify-center">
+                                <img x-show="item.image_url" :src="item.image_url" alt="Item photo" class="object-cover w-full h-full group-hover:scale-105 transition duration-500 opacity-90" @error="item.image_url = null">
+                                <template x-if="item.asset && !item.image_url">
+                                    <div class="flex flex-col items-center justify-center gap-1.5">
+                                        <span class="text-[10px] font-black tracking-[0.2em] text-white bg-indigo-600/90 px-2.5 py-1 rounded-lg" x-text="item.asset.icon_label"></span>
+                                        <span class="text-[10px] text-slate-400 font-mono max-w-[10rem] truncate" x-text="item.asset.file_name"></span>
+                                        <span class="text-[10px] text-slate-500" x-text="formatBytes(item.asset.size_bytes)"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!item.image_url && !item.asset">
+                                    <div class="flex flex-col items-center gap-1 opacity-40">
+                                        <span class="text-3xl">📦</span>
+                                        <span class="text-[9px] font-mono">no photo</span>
+                                    </div>
+                                </template>
+                                <span class="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-md bg-slate-900/80 border border-slate-700 text-slate-300 font-mono" x-text="item.kind"></span>
+                            </div>
+                            <div class="p-4 space-y-1.5">
+                                <h3 class="text-sm font-bold text-white line-clamp-1" x-text="item.title"></h3>
+                                <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed" x-text="item.description || 'No description supplied.'"></p>
+                                <p class="text-[10px] text-slate-500 font-mono" x-text="'seller: @' + (item.seller?.username || item.seller?.name || 'peer node')"></p>
+                                <div class="flex flex-wrap gap-1 pt-1">
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-md border border-emerald-800 text-emerald-300" x-show="item.payment_methods?.includes('wallet')">wallet · instant</span>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-md border border-sky-800 text-sky-300" x-show="item.payment_methods?.includes('mobile_money')">M-Pesa / Tigo / Airtel</span>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-400" x-show="item.negotiable">offers ok</span>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-400" x-show="item.condition" x-text="item.condition"></span>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-400" x-show="item.location" x-text="item.location"></span>
+                                </div>
+                                <p class="text-[10px] text-slate-500" x-show="item.payment_notes" x-text="item.payment_notes"></p>
+                            </div>
+                        </div>
+                        <div class="p-4 pt-0 mt-4 space-y-2">
+                            <p class="text-sm font-black text-emerald-400" x-text="formatMoney(item.price) + ' TZS'"></p>
+                            <div class="flex items-center justify-between gap-2">
+                                <button @click="buyMarketplaceItem(item)" :disabled="busy.market" class="bg-slate-800 hover:bg-indigo-600 disabled:opacity-50 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl text-xs transition border border-slate-700 font-medium">Buy now</button>
+                                <button @click="openQuoteModal(item)" :disabled="!item.negotiable" :class="!item.negotiable ? 'opacity-40 cursor-not-allowed' : 'hover:text-white'" class="text-slate-400 px-2 py-1.5 rounded-xl text-xs transition">Request quotation</button>
+                            </div>
+                            <a x-show="item.file_url" :href="item.file_url" target="_blank" rel="noopener" class="block text-[10px] text-indigo-400 hover:text-indigo-300 font-mono" x-text="downloadLabel(item)"></a>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Seller side: my listings and the offers they received -->
+            <div x-show="auth.user" class="space-y-4">
+                <div x-show="myListings.length" class="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">My listings</h3>
+                    <template x-for="item in myListings" :key="item.id">
+                        <div class="border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold text-white"><span x-text="item.title"></span> <span class="text-slate-500 font-mono" x-text="formatMoney(item.price) + ' TZS'"></span></p>
+                                <p class="text-[10px] text-slate-400 font-mono" x-text="item.kind + ' · ' + (item.asset ? (item.asset.icon_label || 'image') + ' ' + formatBytes(item.asset.size_bytes) : 'no upload')"></p>
+                            </div>
+                            <span class="text-[10px] px-2 py-1 rounded-lg border font-mono text-slate-300 border-slate-700" x-text="item.status"></span>
+                            <div class="flex gap-2">
+                                <button x-show="item.status === 'draft'" @click="publishListing(item)" :disabled="busy.listing" class="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-xl text-xs transition">Publish</button>
+                                <button x-show="item.status === 'draft' || item.status === 'active'" @click="cancelListing(item)" :disabled="busy.listing" class="bg-slate-800 hover:bg-rose-900 disabled:opacity-50 text-slate-300 px-3 py-1.5 rounded-xl text-xs border border-slate-700 transition">Withdraw</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="incomingQuotes.length" class="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">Quotations asked on my listings</h3>
+                    <template x-for="quote in incomingQuotes" :key="quote.id">
+                        <div class="border border-slate-800 rounded-xl p-3 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs font-semibold text-white" x-text="quote.item.title + ' — offer ' + formatMoney(quote.requested_price) + ' TZS'"></p>
+                                <span class="text-[10px] px-2 py-1 rounded-lg border font-mono"
+                                      :class="quote.status === 'paid' ? 'text-emerald-300 border-emerald-800' : (quote.status === 'accepted' ? 'text-indigo-300 border-indigo-700' : 'text-slate-400 border-slate-800')"
+                                      x-text="quote.status"></span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 font-mono">
+                                from @<span x-text="quote.counterparty.username || quote.counterparty.id"></span>
+                                · wallet <span x-text="quote.counterparty.wallet_balance === null ? '?' : formatMoney(quote.counterparty.wallet_balance)"></span> TZS
+                            </p>
+                            <p class="text-[10px] text-slate-500 italic" x-show="quote.message" x-text="'“' + quote.message + '”'"></p>
+                            <div class="flex items-center gap-2" x-show="quote.status === 'pending'">
+                                <input type="number" min="1" step="1" x-model="quoteReply[quote.id]" class="w-28 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none focus:border-indigo-500" placeholder="counter TZS">
+                                <button @click="respondToQuote(quote, 'accept')" :disabled="busy.quote" class="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-xl text-xs transition">Accept</button>
+                                <button @click="respondToQuote(quote, 'decline')" :disabled="busy.quote" class="bg-slate-800 hover:bg-rose-900 disabled:opacity-50 text-slate-300 px-3 py-1.5 rounded-xl text-xs border border-slate-700 transition">Decline</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODALS -->
+    <!-- AzamPay Deposit / Order Modal -->
+    <div x-show="modals.deposit" x-cloak class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white">AzamPay Top-up</h3>
+                <button @click="modals.deposit = false" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-xs text-slate-400">Creates a payment order. The signed webhook credits the wallet and provisions the pass.</p>
+            <div>
+                <label class="block text-[10px] text-slate-400 mb-1 font-mono">PACKAGE</label>
+                <select x-model="depositForm.packageId" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">Select a package…</option>
+                    <template x-for="plan in packages" :key="plan.id">
+                        <option :value="plan.id" x-text="plan.name + ' — ' + formatMoney(plan.price) + ' TZS'"></option>
+                    </template>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] text-slate-400 mb-1 font-mono">MOBILE NUMBER (TZ)</label>
+                <input type="tel" x-model="depositForm.phone" placeholder="0712345678" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <p class="text-[10px] text-slate-500">Device MAC <span class="font-mono text-slate-400" x-text="macAddress || 'not set'"></span> is attached so the pass binds to this node.</p>
+            <button @click="triggerAzamDeposit()" :disabled="busy.deposit" class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-lg shadow-indigo-600/20" x-text="busy.deposit ? 'Submitting…' : 'Proceed to Pay'"></button>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div x-show="modals.withdraw" x-cloak class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white">Withdraw to Mobile Money</h3>
+                <button @click="modals.withdraw = false" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-xs text-slate-400">Payout posts to <code class="font-mono">/api/wallet/withdraw</code>. The server decides whether payouts are enabled.</p>
+            <input type="text" x-model="withdrawForm.phone" placeholder="Mobile Number (e.g. 0712345678)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <input type="number" min="1" step="1" x-model="withdrawForm.amount" placeholder="Amount to withdraw (TZS)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <button @click="triggerWithdrawal()" :disabled="busy.withdraw" class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-lg shadow-indigo-600/20" x-text="busy.withdraw ? 'Submitting…' : 'Confirm Withdrawal'"></button>
+        </div>
+    </div>
+
+    <!-- Sell / Post Listing Modal -->
+    <div x-show="modals.listing" x-cloak class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white">New listing</h3>
+                <button @click="modals.listing = false" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" @click="setListingKind('product')"
+                        :class="newListing.kind === 'product' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-800'"
+                        class="border rounded-xl py-2.5 text-xs font-medium transition">📦 Physical product</button>
+                <button type="button" @click="setListingKind('file')"
+                        :class="newListing.kind === 'file' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-800'"
+                        class="border rounded-xl py-2.5 text-xs font-medium transition">📄 File / digital</button>
+            </div>
+
+            <input type="text" x-model="newListing.title" :placeholder="newListing.kind === 'product' ? 'e.g. mini pc' : 'e.g. RB931GS datasheet'" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <textarea x-model="newListing.description" placeholder="Description &amp; specifications…" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 h-20 resize-none"></textarea>
+            <input type="number" min="1" step="1" x-model="newListing.price" placeholder="Price in TZS" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+
+            <div class="grid grid-cols-2 gap-2">
+                <select x-model="newListing.condition" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">Condition…</option>
+                    <option value="new">New</option>
+                    <option value="used">Used</option>
+                    <option value="refurbished">Refurbished</option>
+                </select>
+                <input type="text" x-model="newListing.location" placeholder="Location (e.g. Dodoma)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <!-- Upload: photo for products, the file itself for digital listings -->
+            <div class="border border-dashed border-slate-700 rounded-2xl p-4 space-y-2"
+                 @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false"
+                 @drop.prevent="dragging = false; onFileDrop($event)"
+                 :class="dragging ? 'border-indigo-500 bg-indigo-950/20' : ''">
+                <p class="text-[11px] font-semibold text-slate-300" x-text="newListing.kind === 'product' ? 'Product photo' : 'File buyers will receive'"></p>
+                <p class="text-[10px] text-slate-500" x-text="newListing.kind === 'product'
+                    ? 'JPG, PNG, WEBP or GIF. Large photos are resized in your browser before upload (5 MB cap).'
+                    : 'PDF, CSV, TXT, ZIP, DOC(X), XLS(X). The card shows the file type — 5 MB cap.'"></p>
+                <div x-show="newListing.previewUrl" class="flex items-center gap-3">
+                    <img :src="newListing.previewUrl" alt="preview" class="w-16 h-16 object-cover rounded-xl border border-slate-800">
+                </div>
+                <div x-show="!newListing.previewUrl && newListing.fileName" class="flex items-center gap-2 text-[11px] text-slate-300">
+                    <span class="text-[10px] font-black tracking-widest text-white bg-indigo-600 px-2 py-0.5 rounded-md" x-text="newListing.iconLabel"></span>
+                    <span class="font-mono" x-text="newListing.fileName"></span>
+                    <span class="text-slate-500" x-text="formatBytes(newListing.fileSize)"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="bg-slate-800 hover:bg-slate-700 cursor-pointer text-slate-200 px-3 py-1.5 rounded-xl text-xs border border-slate-700 transition">
+                        <span x-text="newListing.fileName ? 'Choose a different file' : 'Choose file'"></span>
+                        <input type="file" class="sr-only" aria-label="Attach a photo or file to this listing" @change="onFilePick($event)"
+                               :accept="newListing.kind === 'product' ? 'image/jpeg,image/png,image/webp,image/gif' : '.pdf,.csv,.txt,.zip,.doc,.docx,.xls,.xlsx,application/pdf,text/plain,text/csv,application/zip'">
+                    </label>
+                    <button type="button" x-show="newListing.fileName" @click="clearFile()" class="text-slate-400 hover:text-rose-300 text-xs">remove</button>
+                </div>
+            </div>
+
+            <!-- Payment methods -->
+            <div class="space-y-2">
+                <p class="text-[11px] font-semibold text-slate-300">How buyers pay</p>
+                <label class="flex items-center gap-2 text-[11px] text-slate-300">
+                    <input type="checkbox" x-model="newListing.payWallet" class="rounded bg-slate-950 border-slate-700">
+                    <span>Flat Coin wallet — settles instantly, moves TZS between peer wallets</span>
+                </label>
+                <label class="flex items-center gap-2 text-[11px] text-slate-300">
+                    <input type="checkbox" x-model="newListing.payMobileMoney" class="rounded bg-slate-950 border-slate-700">
+                    <span>M-Pesa / Tigo Pesa / Airtel Money / Azampesa (AzamPay push)</span>
+                </label>
+                <label class="flex items-center gap-2 text-[11px] text-slate-300">
+                    <input type="checkbox" x-model="newListing.negotiable" class="rounded bg-slate-950 border-slate-700">
+                    <span>Accept quotation requests (buyers can offer a different price)</span>
+                </label>
+                <input type="text" x-model="newListing.paymentNotes" placeholder="Payment notes shown on the card (optional)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <input type="tel" x-model="newListing.contactPhone" placeholder="Contact number buyers may use (optional)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <p class="text-[10px] text-slate-400 font-mono" x-show="listingSteps.length">
+                <template x-for="(line, i) in listingSteps" :key="i"><span class="block" x-text="line"></span></template>
+            </p>
+            <button @click="submitListing()" :disabled="busy.listing" class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-lg shadow-indigo-600/20" x-text="busy.listing ? 'Working…' : 'Create &amp; publish listing'"></button>
+        </div>
+    </div>
+
+    <!-- Request Quotation Modal -->
+    <div x-show="modals.quote" x-cloak class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white">Request a quotation</h3>
+                <button @click="modals.quote = false" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-xs text-slate-400">Asking price <span class="text-emerald-400 font-mono" x-text="quoteForm.item ? formatMoney(quoteForm.item.price) + ' TZS' : ''"></span> for <span class="text-white" x-text="quoteForm.item?.title"></span>. The seller can accept, counter or decline; you pay from your wallet once it is accepted.</p>
+            <input type="number" min="1" step="1" x-model="quoteForm.price" placeholder="Your offer in TZS" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <textarea x-model="quoteForm.message" placeholder="Message to the seller (optional)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 h-20 resize-none"></textarea>
+            <p class="text-[10px] text-slate-500" x-show="quoteForm.item">Wallet balance <span class="font-mono text-slate-300" x-text="formatMoney(wallet.balance) + ' TZS'"></span> — an offer above it will be refused by the server.</p>
+            <button @click="submitQuoteRequest()" :disabled="busy.quote" class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-lg shadow-indigo-600/20" x-text="busy.quote ? 'Sending…' : 'Send quotation request'"></button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="w-full py-6 text-center text-[11px] text-slate-500 border-t border-slate-900/80 space-x-3">
+        <span>Flat Coin ISP Node Security Protocol • Powered by Cloudflare D1 & MikroTik Mesh</span>
+        <a href="/" class="text-indigo-400 hover:text-indigo-300">Portal</a>
+        <a href="/account" class="text-indigo-400 hover:text-indigo-300">Sign in</a>
+        <a href="/wallet" class="text-indigo-400 hover:text-indigo-300">Dashboard</a>
+        <a href="/api/meta/catalog" class="text-slate-500 hover:text-indigo-300 font-mono">API catalog</a>
+    </footer>
+
+
+    <!-- Application Script Logic -->
+    <script>
+        function portalApp() {
+            return {
+                // ---------- UI state ----------
+                activeTab: 'plans',
+                omniQuery: '',
+                macAddress: '',
+                toast: { show: false, message: '', icon: '⚡' },
+                modals: { deposit: false, withdraw: false, listing: false, quote: false },
+                loading: { plans: false },
+                busy: { buy: false, deposit: false, withdraw: false, p2p: false, listing: false, market: false, quote: false },
+                apiErrors: { packages: '', wallet: '', ledger: '' },
+                backendOk: false,
+
+                // ---------- server-backed state ----------
+                auth: { checked: false, user: null },
+                wallet: { balance: 0, updated_at: '' },
+                transactions: [],
+                packages: [],
+                marketplace: { state: 'loading', headline: 'Contacting /api/marketplace/items…', note: '', items: [] },
+                activeSession: null,
+                pendingOrder: null,
+                highlightedTx: '',
+                p2pForm: { recipient: '', amount: '' },
+                depositForm: { packageId: '', phone: '' },
+                withdrawForm: { phone: '', amount: '' },
+                // ---------- marketplace seller / buyer state ----------
+                myListings: [],
+                incomingQuotes: [],
+                myQuotes: [],
+                quoteReply: {},
+                dragging: false,
+                listingSteps: [],
+                maxUploadBytes: 5 * 1024 * 1024,
+                newListing: {
+                    kind: 'product', title: '', description: '', price: '', condition: '', location: '',
+                    payWallet: true, payMobileMoney: false, negotiable: true, paymentNotes: '', contactPhone: '',
+                    fileName: '', fileSize: 0, fileType: '', iconLabel: '', previewUrl: '', blob: null,
+                },
+                quoteForm: { item: null, price: '', message: '' },
+
+                // ---------- lifecycle ----------
+                async boot() {
+                    const params = new URLSearchParams(window.location.search);
+                    this.macAddress =
+                        this.normalizeMac(params.get('mac')) ||
+                        this.normalizeMac(localStorage.getItem('flatcoin.mac'));
+                    this.saveMacSilently();
+                    await Promise.all([this.checkSession(), this.loadPackages()]);
+                    await this.loadWalletData();
+                    await Promise.all([this.loadMarketplace(), this.loadSellerPanels()]);
+                },
+
+                // ---------- transport ----------
+                async parseResponse(res) {
+                    const text = await res.text();
+                    let data = null;
+                    try { data = text ? JSON.parse(text) : null; } catch { data = { error: 'Malformed response from ' + res.url }; }
+                    if (!res.ok) {
+                        const err = new Error((data && (data.error || data.purpose)) || 'HTTP ' + res.status);
+                        err.status = res.status;
+                        err.payload = data;
+                        throw err;
+                    }
+                    return data || {};
+                },
+
+                async api(path, options = {}) {
+                    let res;
+                    try {
+                        res = await fetch(path, {
+                            credentials: 'same-origin',
+                            ...options,
+                            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+                        });
+                        this.backendOk = true;
+                    } catch {
+                        this.backendOk = false;
+                        const err = new Error('Network error — the worker did not answer');
+                        err.status = 0;
+                        throw err;
+                    }
+                    return this.parseResponse(res);
+                },
+
+                // Raw bytes go up as the File itself: no base64, no multipart parser.
+                async uploadAsset(itemId, blob, meta) {
+                    let res;
+                    try {
+                        res = await fetch('/api/marketplace/items/' + encodeURIComponent(itemId) + '/asset', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': meta.type,
+                                'X-File-Name': meta.name,
+                            },
+                            body: blob,
+                        });
+                        this.backendOk = true;
+                    } catch {
+                        this.backendOk = false;
+                        const err = new Error('Network error — the upload did not reach the server');
+                        err.status = 0;
+                        throw err;
+                    }
+                    return this.parseResponse(res);
+                },
+
+                describeError(err) {
+                    const p = err && err.payload;
+                    if (p && p.error === 'not_hooked') {
+                        return 'The server has not wired ' + (p.path || 'this endpoint') + ' yet' +
+                            (p.implement_in ? ' (implement in ' + p.implement_in + ')' : '');
+                    }
+                    if (err && err.status === 401) return 'Sign in first.';
+                    if (err && err.status === 403) return 'Rejected by the server: PORTAL_ORIGIN must match this site’s origin.';
+                    if (err && err.status === 409) return (p && p.error) || 'Duplicate request — try again.';
+                    if (err && err.status === 503) return 'Server secrets are not configured yet.';
+                    return (err && err.message) || 'Request failed.';
+                },
+
+                idemKey() {
+                    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+                    return 'portal-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+                },
+
+                // ---------- session ----------
+                async checkSession() {
+                    try {
+                        const data = await this.api('/api/auth/me');
+                        this.auth.user = data.user || null;
+                        if (this.auth.user && this.auth.user.phone_number && !this.depositForm.phone) {
+                            this.depositForm.phone = this.auth.user.phone_number;
+                        }
+                    } catch (err) {
+                        this.auth.user = null;
+                        if (err.status !== 401) this.apiErrors.wallet = this.describeError(err);
+                    } finally {
+                        this.auth.checked = true;
+                    }
+                },
+
+                requireAuth() {
+                    if (this.auth.user) return true;
+                    this.showToast('Sign in to use the wallet and buy passes.', '🔐');
+                    return false;
+                },
+
+                // Protected actions send the visitor to the right pane instead of
+                // leaving them on a form they cannot use yet.
+                goToAuth(mode) {
+                    window.location.href = '/account?mode=' + mode + '&next=%2Flanding';
+                },
+
+                needAuth(mode) {
+                    if (this.auth.user) return false;
+                    this.showToast(mode === 'register'
+                        ? 'Create an account first — then you can sell.'
+                        : 'Sign in first — then you can buy or ask for a quotation.', '🔐');
+                    setTimeout(() => this.goToAuth(mode), 900);
+                    return true;
+                },
+
+                async signOut() {
+                    try {
+                        await this.api('/api/auth/logout', { method: 'POST' });
+                        this.auth.user = null;
+                        this.wallet = { balance: 0, updated_at: '' };
+                        this.transactions = [];
+                        this.pendingOrder = null;
+                        this.activeSession = null;
+                        this.myListings = [];
+                        this.incomingQuotes = [];
+                        this.myQuotes = [];
+                        this.showToast('Signed out — your session was revoked server-side.', '👋');
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                    }
+                },
+
+                // ---------- device / MAC ----------
+                normalizeMac(raw) {
+                    const compact = String(raw || '').trim().replace(/[^0-9A-Fa-f]/g, '');
+                    if (compact.length !== 12) return '';
+                    return (compact.match(/.{2}/g) || []).join(':').toUpperCase();
+                },
+
+                macValid() { return Boolean(this.normalizeMac(this.macAddress)); },
+
+                saveMacSilently() {
+                    if (this.macAddress) localStorage.setItem('flatcoin.mac', this.macAddress);
+                },
+
+                saveMac() {
+                    const normalized = this.normalizeMac(this.macAddress);
+                    if (!normalized) {
+                        this.showToast('That is not a 12-hex-digit MAC address.', '⚠️');
+                        return;
+                    }
+                    this.macAddress = normalized;
+                    localStorage.setItem('flatcoin.mac', normalized);
+                    this.showToast('Node address saved: ' + normalized, '📡');
+                },
+
+                // ---------- packages ----------
+                durationLabel(hours) {
+                    const h = Number(hours) || 0;
+                    if (h < 24) return h + (h === 1 ? ' HOUR' : ' HOURS');
+                    const days = Math.round(h / 24);
+                    return days + (days === 1 ? ' DAY' : ' DAYS');
+                },
+
+                async loadPackages() {
+                    this.loading.plans = true;
+                    this.apiErrors.packages = '';
+                    try {
+                        const data = await this.api('/api/packages');
+                        const rows = Array.isArray(data.packages) ? data.packages : [];
+                        this.packages = rows.map((pkg) => ({
+                            ...pkg,
+                            duration_label: this.durationLabel(pkg.duration_hours),
+                            description: pkg.duration_hours + ' hours of full-speed access, provisioned to this node over RADIUS.',
+                        }));
+                    } catch (err) {
+                        this.apiErrors.packages = this.describeError(err);
+                        this.packages = [];
+                    } finally {
+                        this.loading.plans = false;
+                    }
+                },
+
+                async purchasePlan(plan) {
+                    if (this.needAuth('login')) return;
+                    const mac = this.normalizeMac(this.macAddress);
+                    if (!mac) {
+                        this.showToast('Enter the device MAC address before buying a pass.', '📡');
+                        this.activeTab = 'plans';
+                        return;
+                    }
+                    this.macAddress = mac;
+                    if (!window.confirm('Debit ' + this.formatMoney(plan.price) + ' TZS from your wallet for "' + plan.name + '"?')) return;
+
+                    this.busy.buy = true;
+                    try {
+                        const data = await this.api('/api/session/buy', {
+                            method: 'POST',
+                            headers: { 'Idempotency-Key': this.idemKey() },
+                            body: JSON.stringify({ package_id: plan.id, mac_address: mac }),
+                        });
+                        this.activeSession = data.session || null;
+                        this.showToast('Pass active until ' + this.formatDate(data.session && data.session.expires_at), '📶');
+                        await this.loadWalletData();
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                        if (err.status === 401) this.auth.user = null;
+                    } finally {
+                        this.busy.buy = false;
+                    }
+                },
+
+                // ---------- wallet & ledger ----------
+                isCredit(type) {
+                    return /DEPOSIT|TRANSFER_IN|SELL|CREDIT|REFUND/.test(String(type || '').toUpperCase());
+                },
+
+                prettyType(type) {
+                    return String(type || 'UNKNOWN').replace(/_/g, ' ').toLowerCase().replace(/^\w| \w/g, (c) => c.toUpperCase());
+                },
+
+                async loadWalletData() {
+                    this.apiErrors.wallet = '';
+                    this.apiErrors.ledger = '';
+                    if (!this.auth.user) return;
+                    const id = encodeURIComponent(this.auth.user.id);
+                    const [balance, ledger] = await Promise.allSettled([
+                        this.api('/api/wallet/' + id),
+                        this.api('/api/transactions/' + id),
+                    ]);
+                    if (balance.status === 'fulfilled') {
+                        this.wallet = balance.value.wallet || { balance: 0, updated_at: '' };
+                    } else {
+                        this.apiErrors.wallet = this.describeError(balance.reason);
+                        if (balance.reason.status === 401) this.auth.user = null;
+                    }
+                    if (ledger.status === 'fulfilled') {
+                        this.transactions = Array.isArray(ledger.value.transactions) ? ledger.value.transactions : [];
+                    } else {
+                        this.apiErrors.ledger = this.describeError(ledger.reason);
+                    }
+                },
+
+                // ---------- AzamPay orders ----------
+                openDeposit(plan) {
+                    if (this.needAuth('login')) return;
+                    if (plan && plan.id) this.depositForm.packageId = plan.id;
+                    if (this.auth.user && this.auth.user.phone_number && !this.depositForm.phone) {
+                        this.depositForm.phone = this.auth.user.phone_number;
+                    }
+                    this.modals.deposit = true;
+                },
+
+                async triggerAzamDeposit() {
+                    if (!this.requireAuth()) return;
+                    const packageId = String(this.depositForm.packageId || '').trim();
+                    const phone = String(this.depositForm.phone || '').trim();
+                    if (!packageId || !phone) {
+                        this.showToast('Pick a package and enter the mobile number.', '⚠️');
+                        return;
+                    }
+                    this.busy.deposit = true;
+                    try {
+                        const mac = this.normalizeMac(this.macAddress);
+                        const data = await this.api('/api/payments/orders', {
+                            method: 'POST',
+                            headers: { 'Idempotency-Key': this.idemKey() },
+                            body: JSON.stringify({ package_id: packageId, phone_number: phone, ...(mac ? { mac_address: mac } : {}) }),
+                        });
+                        this.pendingOrder = data.order || null;
+                        this.modals.deposit = false;
+                        this.activeTab = 'wallet';
+                        this.showToast('Order created — waiting for the provider webhook.', '💳');
+                        this.scheduleOrderPolls();
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                        if (err.status === 401) this.auth.user = null;
+                    } finally {
+                        this.busy.deposit = false;
+                    }
+                },
+
+                scheduleOrderPolls() {
+                    let tries = 0;
+                    const tick = setInterval(async () => {
+                        tries += 1;
+                        await this.pollOrder();
+                        if (tries >= 6 || (this.pendingOrder && this.pendingOrder.status !== 'pending')) clearInterval(tick);
+                    }, 5000);
+                },
+
+                async pollOrder() {
+                    if (!this.pendingOrder || !this.pendingOrder.merchant_id) return;
+                    try {
+                        const data = await this.api('/api/payments/orders/' + encodeURIComponent(this.pendingOrder.merchant_id));
+                        const before = this.pendingOrder.status;
+                        this.pendingOrder = data.order || this.pendingOrder;
+                        if (this.pendingOrder.status !== before) {
+                            this.showToast('Order is now ' + this.pendingOrder.status + '.', this.pendingOrder.status === 'completed' ? '✅' : '💳');
+                            await this.loadWalletData();
+                        }
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                    }
+                },
+
+                async triggerWithdrawal() {
+                    if (!this.requireAuth()) return;
+                    const amount = Number(this.withdrawForm.amount);
+                    if (!this.withdrawForm.phone || !Number.isInteger(amount) || amount <= 0) {
+                        this.showToast('Enter a mobile number and a whole-number amount.', '⚠️');
+                        return;
+                    }
+                    this.busy.withdraw = true;
+                    try {
+                        await this.api('/api/wallet/withdraw', {
+                            method: 'POST',
+                            headers: { 'Idempotency-Key': this.idemKey() },
+                            body: JSON.stringify({ phone_number: this.withdrawForm.phone, amount }),
+                        });
+                        this.modals.withdraw = false;
+                        this.showToast('Withdrawal accepted.', '🏦');
+                        await this.loadWalletData();
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '🏦');
+                    } finally {
+                        this.busy.withdraw = false;
+                    }
+                },
+
+                async executeP2P() {
+                    if (!this.requireAuth()) return;
+                    const recipient = String(this.p2pForm.recipient || '').trim();
+                    const amount = Number(this.p2pForm.amount);
+                    if (!recipient || !Number.isInteger(amount) || amount <= 0) {
+                        this.showToast('Recipient account id and a whole-number amount are required.', '⚠️');
+                        return;
+                    }
+                    this.busy.p2p = true;
+                    try {
+                        const data = await this.api('/api/transfer', {
+                            method: 'POST',
+                            headers: { 'Idempotency-Key': this.idemKey() },
+                            body: JSON.stringify({ recipient_id: recipient, amount }),
+                        });
+                        this.p2pForm.recipient = '';
+                        this.p2pForm.amount = '';
+                        this.showToast('Sent ' + this.formatMoney((data.transfer && data.transfer.amount) || amount) + ' TZS.', '💸');
+                        await this.loadWalletData();
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                    } finally {
+                        this.busy.p2p = false;
+                    }
+                },
+
+                // ---------- marketplace ----------
+                // Mirrors ACCEPTED in src/lib/domain/assets.ts, so the browser refuses
+                // exactly the bytes the server would refuse.
+                acceptedTypes: {
+                    'image/jpeg': { label: 'JPG', image: true },
+                    'image/png': { label: 'PNG', image: true },
+                    'image/webp': { label: 'WEBP', image: true },
+                    'image/gif': { label: 'GIF', image: true },
+                    'application/pdf': { label: 'PDF', image: false },
+                    'text/plain': { label: 'TXT', image: false },
+                    'text/csv': { label: 'CSV', image: false },
+                    'application/zip': { label: 'ZIP', image: false },
+                    'application/msword': { label: 'DOC', image: false },
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { label: 'DOCX', image: false },
+                    'application/vnd.ms-excel': { label: 'XLS', image: false },
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { label: 'XLSX', image: false },
+                },
+                extensionTypes: {
+                    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+                    pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', zip: 'application/zip',
+                    doc: 'application/msword',
+                    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    xls: 'application/vnd.ms-excel',
+                    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                },
+
+                fileMimeType(file) {
+                    const type = String(file && file.type || '').split(';')[0].trim();
+                    if (type) return type;
+                    const ext = String((file && file.name || '').split('.').pop() || '').toLowerCase();
+                    return this.extensionTypes[ext] || '';
+                },
+
+                formatBytes(value) {
+                    const n = Number(value) || 0;
+                    if (n < 1024) return n + ' B';
+                    if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + ' KB';
+                    return (n / 1024 / 1024).toFixed(1) + ' MB';
+                },
+
+                downloadLabel(item) {
+                    const asset = item.asset || {};
+                    return '↓ ' + (asset.icon_label || 'FILE') + ' ' + (asset.file_name || 'download') +
+                        ' (' + this.formatBytes(asset.size_bytes) + ')';
+                },
+
+                step(line) {
+                    this.listingSteps = [...this.listingSteps, line].slice(-6);
+                },
+
+                resetListingForm() {
+                    this.clearFile();
+                    this.newListing = {
+                        kind: 'product', title: '', description: '', price: '', condition: '', location: '',
+                        payWallet: true, payMobileMoney: false, negotiable: true, paymentNotes: '', contactPhone: '',
+                        fileName: '', fileSize: 0, fileType: '', iconLabel: '', previewUrl: '', blob: null,
+                    };
+                    this.listingSteps = [];
+                },
+
+                openListingModal() {
+                    if (this.needAuth('register')) return;
+                    if (!this.newListing.contactPhone && this.auth.user.phone_number) {
+                        this.newListing.contactPhone = this.auth.user.phone_number;
+                    }
+                    this.modals.listing = true;
+                },
+
+                setListingKind(kind) {
+                    if (this.newListing.kind === kind) return;
+                    this.newListing.kind = kind;
+                    // A photo picked for a product is not a deliverable file, and a
+                    // datasheet is not a product picture — so the choice is dropped.
+                    if (this.newListing.blob) {
+                        const info = this.acceptedTypes[this.newListing.fileType];
+                        if (!info || info.image !== (kind === 'product')) this.clearFile();
+                    }
+                },
+
+                clearFile() {
+                    if (this.newListing.previewUrl) URL.revokeObjectURL(this.newListing.previewUrl);
+                    this.newListing.blob = null;
+                    this.newListing.previewUrl = '';
+                    this.newListing.fileName = '';
+                    this.newListing.fileSize = 0;
+                    this.newListing.fileType = '';
+                    this.newListing.iconLabel = '';
+                },
+
+                onFilePick(event) {
+                    const file = event && event.target && event.target.files && event.target.files[0];
+                    this.acceptFile(file);
+                    if (event.target) event.target.value = '';
+                },
+
+                onFileDrop(event) {
+                    const file = event && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+                    this.acceptFile(file);
+                },
+
+                async acceptFile(file) {
+                    if (!file) return;
+                    const name = String(file.name || 'upload').slice(0, 140);
+                    const type = this.fileMimeType(file);
+                    const info = this.acceptedTypes[type];
+                    if (!info) {
+                        this.showToast('Unsupported file type. Photos: JPG/PNG/WEBP/GIF. Files: PDF/CSV/TXT/ZIP/DOC(X)/XLS(X).', '⚠️');
+                        return;
+                    }
+                    if (this.newListing.kind === 'product' && !info.image) {
+                        this.showToast('A product card shows a photo. Switch to a "File / digital" listing to sell the document itself.', '⚠️');
+                        return;
+                    }
+                    if (this.newListing.kind === 'file' && info.image) {
+                        this.showToast('A file listing delivers the document buyers download, not a picture.', '⚠️');
+                        return;
+                    }
+                    if (Number(file.size) > this.maxUploadBytes) {
+                        this.showToast('That file is ' + this.formatBytes(file.size) + ' — the cap is 5 MB.', '⚠️');
+                        return;
+                    }
+                    this.clearFile();
+                    let blob = file;
+                    if (info.image) blob = await this.shrinkImage(file);
+                    this.newListing.blob = blob;
+                    this.newListing.fileName = name;
+                    this.newListing.fileSize = Number(blob.size) || 0;
+                    this.newListing.fileType = String(blob.type || type).split(';')[0];
+                    this.newListing.iconLabel = info.label;
+                    if (info.image) this.newListing.previewUrl = URL.createObjectURL(blob);
+                },
+
+                // Photos are scaled down on the device before any byte leaves it.
+                async shrinkImage(file) {
+                    if (file.type === 'image/gif' || file.size < 1200000) return file;
+                    try {
+                        const bitmap = await createImageBitmap(file);
+                        const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                        if (bitmap.close) bitmap.close();
+                        const out = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+                        return out && out.size < file.size ? out : file;
+                    } catch {
+                        return file;
+                    }
+                },
+
+                async loadMarketplace(refreshPanels) {
+                    try {
+                        const data = await this.api('/api/marketplace/items');
+                        const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.listings) ? data.listings : []);
+                        this.marketplace.items = items;
+                        this.marketplace.state = 'live';
+                        this.marketplace.headline = items.length
+                            ? items.length + ' live listing' + (items.length === 1 ? '' : 's') + ' on this mesh'
+                            : 'Marketplace is online — no active listings yet';
+                        this.marketplace.note = 'Sourced from /api/marketplace/items.';
+                    } catch (err) {
+                        this.marketplace.items = [];
+                        const p = err.payload;
+                        this.marketplace.state = err.status === 501 ? 'not_hooked' : 'error';
+                        this.marketplace.headline = err.status === 501
+                            ? 'Marketplace API is declared but not wired to D1 yet (HTTP 501)'
+                            : this.describeError(err);
+                        this.marketplace.note = p && p.purpose
+                            ? p.purpose + ' — planned in ' + p.implement_in + '. Purchases stay disabled until then, so nothing here is faked.'
+                            : 'Listings cannot be bought or posted right now.';
+                    }
+                    if (refreshPanels) await this.loadSellerPanels();
+                },
+
+                async loadSellerPanels() {
+                    this.myListings = [];
+                    this.incomingQuotes = [];
+                    this.myQuotes = [];
+                    if (!this.auth.user) return;
+                    const [mine, incoming, asked] = await Promise.allSettled([
+                        this.api('/api/marketplace/items/mine'),
+                        this.api('/api/marketplace/quotes/incoming'),
+                        this.api('/api/marketplace/quotes/mine'),
+                    ]);
+                    if (mine.status === 'fulfilled') this.myListings = Array.isArray(mine.value.items) ? mine.value.items : [];
+                    if (incoming.status === 'fulfilled') this.incomingQuotes = Array.isArray(incoming.value.quotes) ? incoming.value.quotes : [];
+                    if (asked.status === 'fulfilled') this.myQuotes = Array.isArray(asked.value.quotes) ? asked.value.quotes : [];
+                },
+
+                async submitListing() {
+                    if (this.needAuth('register')) return;
+                    const title = String(this.newListing.title || '').trim();
+                    const price = Number(String(this.newListing.price ?? '').replace(/[^0-9]/g, ''));
+                    if (title.length < 3 || title.length > 100) {
+                        this.showToast('Give the listing a title of 3-100 characters.', '⚠️');
+                        return;
+                    }
+                    if (!Number.isSafeInteger(price) || price <= 0) {
+                        this.showToast('Price must be a whole number of TZS above 0.', '⚠️');
+                        return;
+                    }
+                    if (!this.newListing.payWallet && !this.newListing.payMobileMoney) {
+                        this.showToast('Pick at least one way for buyers to pay.', '⚠️');
+                        return;
+                    }
+                    this.busy.listing = true;
+                    this.listingSteps = [];
+                    const publishedTitle = title;
+                    let draftId = '';
+                    try {
+                        this.step('1/3 creating the ' + this.newListing.kind + ' draft…');
+                        const created = await this.api('/api/marketplace/items', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                kind: this.newListing.kind,
+                                title,
+                                description: String(this.newListing.description || '').trim(),
+                                price,
+                                negotiable: Boolean(this.newListing.negotiable),
+                                pay_wallet: Boolean(this.newListing.payWallet),
+                                pay_mobile_money: Boolean(this.newListing.payMobileMoney),
+                                payment_notes: String(this.newListing.paymentNotes || '').trim(),
+                                condition: this.newListing.condition || null,
+                                location: String(this.newListing.location || '').trim() || null,
+                                contact_phone: String(this.newListing.contactPhone || '').trim() || null,
+                            }),
+                        });
+                        const item = created.item;
+                        if (!item || !item.id) throw new Error('The server did not confirm the new listing');
+                        draftId = String(item.id);
+                        this.step('1/3 draft ' + draftId.slice(0, 8) + ' created');
+
+                        if (this.newListing.blob) {
+                            this.step('2/3 uploading ' + this.newListing.fileName + ' · ' + this.formatBytes(this.newListing.fileSize) + '…');
+                            const uploaded = await this.uploadAsset(item.id, this.newListing.blob, {
+                                type: this.newListing.fileType,
+                                name: this.newListing.fileName,
+                            });
+                            const sha = uploaded.asset && uploaded.asset.sha256 ? String(uploaded.asset.sha256).slice(0, 12) : '';
+                            this.step('2/3 stored, sha256 ' + sha + '…');
+                        } else {
+                            this.step('2/3 no file attached — listed without a picture');
+                        }
+
+                        this.step('3/3 publishing…');
+                        await this.api('/api/marketplace/items/' + encodeURIComponent(item.id) + '/publish', { method: 'POST' });
+                        this.step('3/3 live on the mesh');
+                        this.modals.listing = false;
+                        this.resetListingForm();
+                        this.showToast('Published "' + publishedTitle + '".', '🛍️');
+                        await Promise.all([this.loadMarketplace(), this.loadSellerPanels()]);
+                    } catch (err) {
+                        const message = this.describeError(err);
+                        this.step('✗ ' + message);
+                        if (draftId) this.step('draft ' + draftId.slice(0, 8) + ' is in "My listings" — attach another file, Publish it, or Withdraw it');
+                        this.showToast(message, '🛍️');
+                        if (err.status === 401) this.auth.user = null;
+                        await this.loadSellerPanels();
+                    } finally {
+                        this.busy.listing = false;
+                    }
+                },
+
+                async publishListing(item) {
+                    this.busy.listing = true;
+                    try {
+                        await this.api('/api/marketplace/items/' + encodeURIComponent(item.id) + '/publish', { method: 'POST' });
+                        this.showToast('"' + item.title + '" is live.', '🛍️');
+                        await Promise.all([this.loadMarketplace(), this.loadSellerPanels()]);
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                    } finally {
+                        this.busy.listing = false;
+                    }
+                },
+
+                async cancelListing(item) {
+                    if (!window.confirm('Withdraw "' + item.title + '" from the marketplace?')) return;
+                    this.busy.listing = true;
+                    try {
+                        await this.api('/api/marketplace/items/' + encodeURIComponent(item.id) + '/cancel', { method: 'POST' });
+                        this.showToast('Listing withdrawn.', '🛍️');
+                        await Promise.all([this.loadMarketplace(), this.loadSellerPanels()]);
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                    } finally {
+                        this.busy.listing = false;
+                    }
+                },
+
+                async buyMarketplaceItem(item) {
+                    if (this.needAuth('login')) return;
+                    if (!item.payment_methods || item.payment_methods.indexOf('wallet') === -1) {
+                        this.showToast('This listing does not accept wallet payment.', '⚠️');
+                        return;
+                    }
+                    if (!window.confirm('Pay ' + this.formatMoney(item.price) + ' TZS from your wallet for "' + item.title + '"?')) return;
+                    this.busy.market = true;
+                    try {
+                        const data = await this.api('/api/marketplace/buy', {
+                            method: 'POST',
+                            headers: { 'Idempotency-Key': this.idemKey() },
+                            body: JSON.stringify({ item_id: item.id }),
+                        });
+                        const paid = data && data.paid ? data.paid : item.price;
+                        this.showToast('Paid ' + this.formatMoney(paid) + ' TZS — ' + (item.seller && item.seller.username ? '@' + item.seller.username + ' was credited.' : 'seller credited.'), '🛍️');
+                        await Promise.all([this.loadWalletData(), this.loadMarketplace(), this.loadSellerPanels()]);
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '🛍️');
+                        if (err.status === 401) this.auth.user = null;
+                    } finally {
+                        this.busy.market = false;
+                    }
+                },
+
+                // ---------- quotations ----------
+                openQuoteModal(item) {
+                    if (this.needAuth('login')) return;
+                    if (!item.negotiable) {
+                        this.showToast('This seller is not accepting offers.', '⚠️');
+                        return;
+                    }
+                    this.quoteForm = { item, price: '', message: '' };
+                    this.modals.quote = true;
+                },
+
+                async submitQuoteRequest() {
+                    if (this.needAuth('login')) return;
+                    const item = this.quoteForm.item;
+                    if (!item) return;
+                    const offered = Number(String(this.quoteForm.price ?? '').replace(/[^0-9]/g, ''));
+                    if (!Number.isSafeInteger(offered) || offered <= 0) {
+                        this.showToast('Enter your offer as a whole number of TZS.', '⚠️');
+                        return;
+                    }
+                    this.busy.quote = true;
+                    try {
+                        await this.api('/api/marketplace/items/' + encodeURIComponent(item.id) + '/quotes', {
+                            method: 'POST',
+                            body: JSON.stringify({ offered_price: offered, message: String(this.quoteForm.message || '').trim() }),
+                        });
+                        this.modals.quote = false;
+                        this.showToast('Quotation sent — the seller can accept, counter or decline.', '📝');
+                        await this.loadSellerPanels();
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '📝');
+                        if (err.status === 401) this.auth.user = null;
+                    } finally {
+                        this.busy.quote = false;
+                    }
+                },
+
+                async respondToQuote(quote, decision) {
+                    this.busy.quote = true;
+                    const raw = this.quoteReply[quote.id];
+                    const counter = Number(String(raw ?? '').replace(/[^0-9]/g, ''));
+                    const payload = { decision };
+                    if (decision === 'accept' && Number.isSafeInteger(counter) && counter > 0) payload.counter_price = counter;
+                    try {
+                        await this.api('/api/marketplace/quotes/' + encodeURIComponent(quote.id) + '/respond', {
+                            method: 'POST',
+                            body: JSON.stringify(payload),
+                        });
+                        const label = decision === 'accept'
+                            ? 'accepted' + (payload.counter_price ? ' at ' + this.formatMoney(payload.counter_price) + ' TZS' : '')
+                            : 'declined';
+                        this.showToast('Quotation from @' + (quote.counterparty.username || '?') + ' ' + label + '.', '📝');
+                        delete this.quoteReply[quote.id];
+                        await this.loadSellerPanels();
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '📝');
+                    } finally {
+                        this.busy.quote = false;
+                    }
+                },
+
+                async payQuote(quote) {
+                    if (this.needAuth('login')) return;
+                    const amount = Number(quote.payable_price || quote.accepted_price);
+                    if (!Number.isSafeInteger(amount) || amount <= 0) {
+                        this.showToast('This quotation has no agreed price.', '⚠️');
+                        return;
+                    }
+                    if (!window.confirm('Pay ' + this.formatMoney(amount) + ' TZS from your wallet for "' + quote.item.title + '"?')) return;
+                    this.busy.quote = true;
+                    try {
+                        const data = await this.api('/api/marketplace/quotes/' + encodeURIComponent(quote.id) + '/pay', {
+                            method: 'POST',
+                            headers: { 'Idempotency-Key': this.idemKey() },
+                            body: '{}',
+                        });
+                        this.showToast('Paid ' + this.formatMoney(data.paid || amount) + ' TZS — both ledgers updated.', '✅');
+                        await Promise.all([this.loadWalletData(), this.loadMarketplace(), this.loadSellerPanels()]);
+                    } catch (err) {
+                        this.showToast(this.describeError(err), '⚠️');
+                        if (err.status === 401) this.auth.user = null;
+                    } finally {
+                        this.busy.quote = false;
+                    }
+                },
+
+                // ---------- omni search ----------
+                handleOmniSearch() {
+                    const query = String(this.omniQuery || '').trim();
+                    this.omniQuery = '';
+                    if (!query) return;
+
+                    const mac = this.normalizeMac(query);
+                    if (mac) {
+                        this.macAddress = mac;
+                        this.saveMac();
+                        return;
+                    }
+
+                    const tx = this.transactions.find((row) => (row.reference_id || row.id).toLowerCase().includes(query.toLowerCase()));
+                    if (tx) {
+                        this.highlightedTx = tx.reference_id || tx.id;
+                        this.activeTab = 'wallet';
+                        this.showToast('Ledger match: ' + this.prettyType(tx.type) + ' ' + this.formatMoney(tx.amount) + ' TZS', '💳');
+                        return;
+                    }
+
+                    const pkg = this.packages.find((row) => String(row.id).toLowerCase() === query.toLowerCase() || String(row.name).toLowerCase().includes(query.toLowerCase()));
+                    if (pkg) {
+                        this.activeTab = 'plans';
+                        this.showToast('Package match: ' + pkg.name + ' — ' + this.formatMoney(pkg.price) + ' TZS', '📶');
+                        return;
+                    }
+
+                    this.showToast('No ledger, package, or node match for "' + query.slice(0, 24) + '".', '🛠️');
+                },
+
+                // ---------- formatting & misc ----------
+                formatMoney(value) {
+                    const n = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
+                    return Number.isFinite(n) ? n.toLocaleString('en-US') : '0';
+                },
+
+                parseDate(value) {
+                    if (!value) return null;
+                    const iso = /[T ]/.test(value) && !/Z|[+-]\d{2}:?\d{2}$/.test(value)
+                        ? String(value).replace(' ', 'T') + 'Z'
+                        : String(value);
+                    const d = new Date(iso);
+                    return Number.isNaN(d.getTime()) ? null : d;
+                },
+
+                formatDate(value) {
+                    const d = this.parseDate(value);
+                    return d ? d.toLocaleString() : '—';
+                },
+
+                async copy(text) {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        this.showToast('Copied to clipboard.', '📋');
+                    } catch {
+                        this.showToast('Clipboard blocked by the browser — copy manually.', '⚠️');
+                    }
+                },
+
+                showToast(message, icon = '⚡') {
+                    this.toast.message = message;
+                    this.toast.icon = icon;
+                    this.toast.show = true;
+                    clearTimeout(this._toastTimer);
+                    this._toastTimer = setTimeout(() => { this.toast.show = false; }, 4000);
+                },
+
+                generatePDFReceipt(tx) {
+                    if (!window.jspdf || !window.jspdf.jsPDF) {
+                        this.showToast('The PDF library did not load (offline?).', '⚠️');
+                        return;
+                    }
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    doc.setFillColor(15, 23, 42);
+                    doc.rect(0, 0, 210, 297, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(22);
+                    doc.text('FLAT COIN ISP - OFFICIAL RECEIPT', 20, 30);
+                    doc.setFontSize(12);
+                    doc.setTextColor(148, 163, 184);
+                    doc.text('Secure Ledger Transaction Statement', 20, 40);
+
+                    doc.setDrawColor(51, 65, 85);
+                    doc.line(20, 50, 190, 50);
+
+                    doc.setTextColor(255, 255, 255);
+                    doc.text('Transaction Reference ID: ' + (tx.reference_id || tx.id), 20, 70);
+                    doc.text('Type: ' + String(tx.type || ''), 20, 80);
+                    doc.text('Amount: ' + (this.isCredit(tx.type) ? '+' : '-') + this.formatMoney(tx.amount) + ' TZS', 20, 90);
+                    doc.text('Status: ' + String(tx.status || ''), 20, 100);
+                    doc.text('Date Recorded: ' + this.formatDate(tx.created_at), 20, 110);
+                    doc.text('Device MAC Node: ' + (this.macAddress || 'not supplied'), 20, 120);
+                    doc.text('Issued: ' + new Date().toISOString(), 20, 140);
+
+                    doc.save('receipt-' + (tx.reference_id || tx.id) + '.pdf');
+                    this.showToast('PDF Receipt downloaded to device.', '📄');
+                }
+            };
+        }
+    </script>
+</body>
+</html>

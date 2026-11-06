@@ -6,3 +6,7 @@ compatibility_date = "2026-09-19"
 binding = "DB"
 database_name = "flat-coin-db"
 database_id = "4432cead-ccc2-4bd8-b753-bd5e790be3ac"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
