@@ -2,6 +2,7 @@ export type ApiStatus = 'live' | 'not_hooked'
 export type ApiAuth =
   | 'none'
   | 'session_cookie'
+  | 'staff_session'
   | 'radius_secret'
   | 'admin_secret'
   | 'azampay_webhook'
@@ -9,7 +10,7 @@ export type ApiAuth =
 
 export type ApiContract = {
   id: string
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   path: string
   status: ApiStatus
   auth: ApiAuth
@@ -397,6 +398,84 @@ export const API_CATALOG: ApiContract[] = [
     secrets: ['AUTH_SECRET', 'PORTAL_ORIGIN', 'AZAMPAY_*'],
     request: { amount: 'positive integer TZS' },
     response: { status: 'pending' },
+    landing_probes: false,
+  },
+  {
+    id: 'admin.auth',
+    method: 'POST',
+    path: '/api/admin/auth/login',
+    status: 'live',
+    auth: 'none',
+    purpose: 'Staff sign-in (username or email + PBKDF2 password); sets the HttpOnly admin_session cookie and writes admin.login / admin.login_failed to the audit outbox.',
+    implement_in: 'src/routes/admin/auth.ts',
+    secrets: ['AUTH_SECRET', 'PORTAL_ORIGIN'],
+    request: { identifier: 'username or email', password: 'string' },
+    response: { ok: 'boolean', admin: '{ id, username, role, must_change_password }' },
+    landing_probes: false,
+  },
+  {
+    id: 'admin.read',
+    method: 'GET',
+    path: '/api/admin/overview',
+    status: 'live',
+    auth: 'staff_session',
+    purpose: 'Console reads: /overview, /users, /users/:id, /ledger, /tiers, /orders, /sessions, /marketplace, /staff — the same rows the portal and the router serve.',
+    implement_in: 'src/routes/admin/api.ts',
+    secrets: ['AUTH_SECRET'],
+    request: { q: 'search string?', status: 'filter?', limit: '1..200', offset: 'number' },
+    response: { rows: 'per endpoint', currency: 'TZS' },
+    landing_probes: false,
+  },
+  {
+    id: 'admin.write',
+    method: 'POST',
+    path: '/api/admin/wallet/credit',
+    status: 'live',
+    auth: 'staff_session',
+    purpose: 'Console writes behind role checks: wallet credit/debit, customer status and password reset, pass issue, tier create/update/archive, order settle, listing takedown, quote expiry, staff management, own credentials. Money verbs need an Idempotency-Key and one audit row.',
+    implement_in: 'src/routes/admin/mutations.ts',
+    secrets: ['AUTH_SECRET', 'PORTAL_ORIGIN'],
+    request: { 'Idempotency-Key': '8..128 chars for money verbs', user: 'id | @username | phone', amount: 'integer TZS' },
+    response: { ok: 'boolean', credit: '{ balance } or error' },
+    landing_probes: false,
+  },
+  {
+    id: 'admin.moderation',
+    method: 'PATCH',
+    path: '/api/admin/tiers/:id',
+    status: 'live',
+    auth: 'staff_session',
+    purpose: 'Tier repricing/visibility (PATCH) and archive (DELETE); /api/admin/marketplace/items/:id/takedown and /api/admin/quotes/:id/expire for sellers.',
+    implement_in: 'src/routes/admin/mutations.ts',
+    secrets: ['AUTH_SECRET', 'PORTAL_ORIGIN'],
+    request: { active: 'boolean', price: 'integer TZS' },
+    response: { ok: 'boolean', tier: '{ id, active }' },
+    landing_probes: false,
+  },
+  {
+    id: 'admin.audit.export',
+    method: 'GET',
+    path: '/api/admin/audit/events',
+    status: 'live',
+    auth: 'admin_secret',
+    purpose: 'Append-only outbox feed. Accepts either a staff session or the X-Admin-Secret header, so the offline exporter keeps working without a human cookie.',
+    implement_in: 'src/routes/admin/api.ts',
+    secrets: ['ADMIN_SECRET', 'AUTH_SECRET'],
+    request: { after: 'event_id?', event_type: 'filter?', limit: '1..1000' },
+    response: { events: 'rows[]', currency: 'TZS' },
+    landing_probes: false,
+  },
+  {
+    id: 'admin.console',
+    method: 'GET',
+    path: '/admin',
+    status: 'live',
+    auth: 'staff_session',
+    purpose: 'Staff console shell — no third-party assets, read and write over the portal and router data.',
+    implement_in: 'src/routes/admin/dashboard.ts',
+    secrets: ['AUTH_SECRET'],
+    request: {},
+    response: { html: 'console shell' },
     landing_probes: false,
   },
   {

@@ -1,3 +1,16 @@
 node_modules/
 .wrangler/
 .DS_Store
+
+# Local smoke-test scratch: cookie jars, response dumps, generated fixtures.
+# These hold live session tokens, so they must never be committed.
+.tmp-*
+tmp-*
+audit/*.sqlite3
+audit/*.sqlite3-*
+mikrotik-7.23.7-arm64.iso
+data.tar.xz
+mikrotik-7.23.7-arm64.iso
+data.tar.xz
+.tmp-*.txt
+.tmp-*.log
